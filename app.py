@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # =========================================================
-# CONFIG
+# CONFIGURACIÓN GENERAL
 # =========================================================
 
 st.set_page_config(
@@ -21,13 +21,6 @@ sns.set_theme(style="whitegrid")
 
 st.title("🎮 Dashboard de Minería de Datos — Dota 2")
 
-st.markdown("""
-### Hipótesis Analizadas
-1. Influencia del draft de héroes en el resultado final.
-2. Influencia del rendimiento individual en la victoria.
-3. Influencia de la economía y recursos en el resultado.
-""")
-
 # =========================================================
 # CARGA DE DATOS
 # =========================================================
@@ -37,7 +30,7 @@ players = pd.read_csv('data/players.csv')
 heroes = pd.read_csv('data/hero_stats.csv')
 
 # =========================================================
-# UNIÓN
+# UNIÓN DE TABLAS
 # =========================================================
 
 df = players.merge(
@@ -53,7 +46,37 @@ df = df.merge(
 )
 
 # =========================================================
-# LIMPIEZA
+# LIMPIEZA DE NULOS
+# =========================================================
+
+df = df.dropna(
+    subset=[
+        'match_id',
+        'hero_id',
+        'hero_name'
+    ]
+)
+
+numeric_cols = [
+    'hero_damage',
+    'tower_damage',
+    'hero_healing',
+    'gold_per_min',
+    'xp_per_min',
+    'net_worth',
+    'kills',
+    'deaths',
+    'assists'
+]
+
+for col in numeric_cols:
+
+    if col in df.columns:
+
+        df[col] = df[col].fillna(0)
+
+# =========================================================
+# LIMPIEZA GENERAL
 # =========================================================
 
 df['duration_min'] = df['duration'] / 60
@@ -72,7 +95,7 @@ df['team'] = df['player_slot'].apply(
 )
 
 # =========================================================
-# WIN
+# RESULTADO
 # =========================================================
 
 df['win'] = df.apply(
@@ -100,7 +123,7 @@ df['KDA'] = (
 )
 
 # =========================================================
-# ROLE
+# CLASIFICACIÓN DE ROLES SEGÚN GPM
 # =========================================================
 
 def classify_role(gpm):
@@ -119,30 +142,95 @@ df['role'] = df['gold_per_min'].apply(
 )
 
 # =========================================================
+# EXTRAER ROL PRINCIPAL DEL HÉROE
+# =========================================================
+
+def extract_main_role(role_text):
+
+    if pd.isna(role_text):
+        return 'Desconocido'
+
+    role_text = str(role_text)
+
+    if 'Carry' in role_text:
+        return 'Carry'
+
+    elif 'Support' in role_text:
+        return 'Support'
+
+    elif 'Nuker' in role_text:
+        return 'Nuker'
+
+    elif 'Initiator' in role_text:
+        return 'Initiator'
+
+    elif 'Durable' in role_text:
+        return 'Durable'
+
+    else:
+        return 'Otros'
+
+df['hero_role'] = df['roles'].apply(
+    extract_main_role
+)
+
+# =========================================================
+# ATRIBUTOS EN ESPAÑOL
+# =========================================================
+
+attr_map = {
+    'agi': 'Agilidad',
+    'str': 'Fuerza',
+    'int': 'Inteligencia',
+    'all': 'Universal'
+}
+
+df['primary_attr_es'] = df['primary_attr'].map(
+    attr_map
+)
+
+# =========================================================
+# NOMBRE COMPLETO HÉROE
+# =========================================================
+
+df['hero_label'] = (
+    df['hero_name']
+    + ' ('
+    + df['primary_attr_es']
+    + ')'
+)
+
+# =========================================================
 # KPIs
 # =========================================================
+
+st.subheader("📊 Resumen General")
 
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
+
     st.metric(
         "Partidas",
         len(matches)
     )
 
 with col2:
+
     st.metric(
         "Jugadores",
         len(players)
     )
 
 with col3:
+
     st.metric(
         "Winrate Radiant",
         f"{matches['radiant_win'].mean()*100:.1f}%"
     )
 
 with col4:
+
     st.metric(
         "Duración Promedio",
         f"{df['duration_min'].mean():.1f} min"
@@ -152,72 +240,73 @@ with col4:
 # HIPÓTESIS 1
 # =========================================================
 
-st.header("📌 Hipótesis 1 — Influencia del Draft")
+st.header("📌 Hipótesis 1")
 
-col1, col2 = st.columns(2)
+st.markdown("""
+### ¿Cómo influye la composición del draft de héroes en el resultado final?
+""")
 
-# ---------------------------------------------------------
-# TOP HÉROES
-# ---------------------------------------------------------
+col1, col2 = st.columns([2,1])
+
+# =========================================================
+# TODOS LOS HÉROES
+# =========================================================
 
 with col1:
 
-    fig1, ax1 = plt.subplots(figsize=(8,4))
+    fig1, ax1 = plt.subplots(
+        figsize=(14, 30)
+    )
 
-    top_heroes = (
-        df['hero_name']
+    hero_counts = (
+        df['hero_label']
         .value_counts()
-        .head(8)
+        .sort_values()
     )
 
     sns.barplot(
-        x=top_heroes.index,
-        y=top_heroes.values,
-        palette='Blues_d',
+        x=hero_counts.values,
+        y=hero_counts.index,
+        palette='viridis',
         ax=ax1
     )
 
     ax1.set_title(
-        'Héroes Más Utilizados'
+        'Frecuencia de Uso de Todos los Héroes',
+        fontsize=18,
+        fontweight='bold'
     )
 
-    ax1.set_xlabel('')
+    ax1.set_xlabel(
+        'Cantidad de Partidas'
+    )
 
     ax1.set_ylabel(
-        'Cantidad'
+        'Héroes'
     )
 
     ax1.tick_params(
-        axis='x',
-        rotation=35
+        axis='y',
+        labelsize=8,
+        pad=10
     )
 
     st.pyplot(fig1)
 
-# ---------------------------------------------------------
-# WINRATE ATRIBUTO
-# ---------------------------------------------------------
+# =========================================================
+# WINRATE POR ATRIBUTO
+# =========================================================
 
 with col2:
 
-    fig2, ax2 = plt.subplots(figsize=(5,4))
-
-    attr_win = (
-        df.groupby('primary_attr')['win']
-        .mean() * 100
+    fig2, ax2 = plt.subplots(
+        figsize=(6,6)
     )
 
-    labels_map = {
-        'agi': 'Agilidad',
-        'str': 'Fuerza',
-        'int': 'Inteligencia',
-        'all': 'Universal'
-    }
-
-    attr_win.index = [
-        labels_map.get(x, x)
-        for x in attr_win.index
-    ]
+    attr_win = (
+        df.groupby('primary_attr_es')['win']
+        .mean() * 100
+    )
 
     ax2.pie(
         attr_win.values,
@@ -227,7 +316,7 @@ with col2:
     )
 
     ax2.set_title(
-        'Winrate según atributo'
+        'Winrate según Atributo'
     )
 
     st.pyplot(fig2)
@@ -236,17 +325,23 @@ with col2:
 # HIPÓTESIS 2
 # =========================================================
 
-st.header("📌 Hipótesis 2 — Rendimiento Individual")
+st.header("📌 Hipótesis 2")
+
+st.markdown("""
+### ¿Cómo influye el rendimiento individual en la victoria?
+""")
 
 col3, col4 = st.columns(2)
 
-# ---------------------------------------------------------
-# VIOLIN KDA
-# ---------------------------------------------------------
+# =========================================================
+# KDA
+# =========================================================
 
 with col3:
 
-    fig3, ax3 = plt.subplots(figsize=(7,4))
+    fig3, ax3 = plt.subplots(
+        figsize=(8,5)
+    )
 
     sns.violinplot(
         data=df,
@@ -260,18 +355,28 @@ with col3:
     )
 
     ax3.set_title(
-        'Distribución del KDA'
+        'Distribución del KDA según Resultado'
+    )
+
+    ax3.set_xlabel(
+        'Resultado'
+    )
+
+    ax3.set_ylabel(
+        'KDA'
     )
 
     st.pyplot(fig3)
 
-# ---------------------------------------------------------
-# SCATTER XP DAMAGE
-# ---------------------------------------------------------
+# =========================================================
+# XP VS HERO DAMAGE
+# =========================================================
 
 with col4:
 
-    fig4, ax4 = plt.subplots(figsize=(7,4))
+    fig4, ax4 = plt.subplots(
+        figsize=(8,5)
+    )
 
     scatter_df = df.sample(
         min(800, len(df))
@@ -287,7 +392,15 @@ with col4:
     )
 
     ax4.set_title(
-        'XP vs Hero Damage'
+        'XP por Minuto vs Hero Damage'
+    )
+
+    ax4.set_xlabel(
+        'XP por minuto'
+    )
+
+    ax4.set_ylabel(
+        'Hero Damage'
     )
 
     st.pyplot(fig4)
@@ -296,43 +409,67 @@ with col4:
 # HIPÓTESIS 3
 # =========================================================
 
-st.header("📌 Hipótesis 3 — Economía y Recursos")
+st.header("📌 Hipótesis 3")
+
+st.markdown("""
+### ¿Cómo influye la economía y distribución de recursos en la victoria?
+""")
 
 col5, col6 = st.columns(2)
 
-# ---------------------------------------------------------
-# GPM ROL
-# ---------------------------------------------------------
+# =========================================================
+# GPM POR ROL DEL HÉROE
+# =========================================================
 
 with col5:
 
-    fig5, ax5 = plt.subplots(figsize=(7,4))
+    fig5, ax5 = plt.subplots(
+        figsize=(9,5)
+    )
 
-    role_gpm = (
-        df.groupby('role')['gold_per_min']
+    hero_role_gpm = (
+        df.groupby('hero_role')['gold_per_min']
         .mean()
+        .sort_values(ascending=False)
     )
 
     sns.barplot(
-        x=role_gpm.index,
-        y=role_gpm.values,
-        palette=['limegreen', 'orange', 'deepskyblue'],
+        x=hero_role_gpm.index,
+        y=hero_role_gpm.values,
+        palette='magma',
         ax=ax5
     )
 
     ax5.set_title(
-        'GPM Promedio por Rol'
+        'GPM Promedio según Rol del Héroe',
+        fontsize=16,
+        fontweight='bold'
+    )
+
+    ax5.set_xlabel(
+        'Rol del Héroe'
+    )
+
+    ax5.set_ylabel(
+        'Gold Per Minute'
+    )
+
+    ax5.tick_params(
+        axis='x',
+        rotation=20
     )
 
     st.pyplot(fig5)
 
-# ---------------------------------------------------------
+# =========================================================
 # NET WORTH
-# ---------------------------------------------------------
+# =========================================================
 
 with col6:
 
-    fig6, ax6 = plt.subplots(figsize=(7,4))
+    fig6, ax6 = plt.subplots(
+        figsize=(8,5)
+    )
 
     sns.kdeplot(
         data=df,
@@ -347,13 +484,21 @@ with col6:
         'Distribución de Net Worth'
     )
 
+    ax6.set_xlabel(
+        'Net Worth'
+    )
+
+    ax6.set_ylabel(
+        'Densidad'
+    )
+
     st.pyplot(fig6)
 
 # =========================================================
 # TABLA FINAL
 # =========================================================
 
-st.subheader("Vista previa del Dataset")
+st.header("📋 Vista previa del Dataset")
 
 st.dataframe(
     df.head(20)
