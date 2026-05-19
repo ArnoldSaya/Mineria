@@ -16,7 +16,7 @@ plt.style.use('ggplot')
 sns.set_theme(style="whitegrid")
 
 # =========================================================
-# TÍTULO
+# TÍTULO PRINCIPAL
 # =========================================================
 
 st.title("🎮 Dashboard de Minería de Datos — Dota 2")
@@ -46,7 +46,7 @@ df = df.merge(
 )
 
 # =========================================================
-# LIMPIEZA DE NULOS
+# LIMPIEZA DE DATOS
 # =========================================================
 
 df = df.dropna(
@@ -76,7 +76,7 @@ for col in numeric_cols:
         df[col] = df[col].fillna(0)
 
 # =========================================================
-# LIMPIEZA GENERAL
+# DURACIÓN
 # =========================================================
 
 df['duration_min'] = df['duration'] / 60
@@ -123,7 +123,7 @@ df['KDA'] = (
 )
 
 # =========================================================
-# CLASIFICACIÓN DE ROLES SEGÚN GPM
+# CLASIFICACIÓN DE ROLES
 # =========================================================
 
 def classify_role(gpm):
@@ -142,7 +142,7 @@ df['role'] = df['gold_per_min'].apply(
 )
 
 # =========================================================
-# EXTRAER ROL PRINCIPAL DEL HÉROE
+# ROL PRINCIPAL DEL HÉROE
 # =========================================================
 
 def extract_main_role(role_text):
@@ -185,19 +185,17 @@ attr_map = {
     'all': 'Universal'
 }
 
-df['primary_attr_es'] = df['primary_attr'].map(
-    attr_map
-)
+df['primary_attr_es'] = df['primary_attr'].map(attr_map)
 
 # =========================================================
-# NOMBRE COMPLETO HÉROE
+# NOMBRE COMPLETO DEL HÉROE
 # =========================================================
 
 df['hero_label'] = (
-    df['hero_name']
-    + ' ('
-    + df['primary_attr_es']
-    + ')'
+    df['hero_name'] +
+    ' (' +
+    df['primary_attr_es'].fillna('Sin atributo') +
+    ')'
 )
 
 # =========================================================
@@ -243,19 +241,19 @@ with col4:
 st.header("📌 Hipótesis 1")
 
 st.markdown("""
-### ¿Cómo influye la composición del draft de héroes en el resultado final?
+### ¿Cómo influye la composición del draft de héroes en el resultado final de una partida de Dota 2?
 """)
 
-col1, col2 = st.columns([2,1])
+col1, col2 = st.columns([2, 1])
 
 # =========================================================
-# TODOS LOS HÉROES
+# FRECUENCIA DE HÉROES
 # =========================================================
 
 with col1:
 
     fig1, ax1 = plt.subplots(
-        figsize=(14, 30)
+        figsize=(15, 32)
     )
 
     hero_counts = (
@@ -288,19 +286,19 @@ with col1:
     ax1.tick_params(
         axis='y',
         labelsize=8,
-        pad=10
+        pad=12
     )
 
     st.pyplot(fig1)
 
 # =========================================================
-# WINRATE POR ATRIBUTO
+# WINRATE SEGÚN ATRIBUTO
 # =========================================================
 
 with col2:
 
     fig2, ax2 = plt.subplots(
-        figsize=(6,6)
+        figsize=(6, 6)
     )
 
     attr_win = (
@@ -328,19 +326,19 @@ with col2:
 st.header("📌 Hipótesis 2")
 
 st.markdown("""
-### ¿Cómo influye el rendimiento individual en la victoria?
+### ¿Cómo influye el rendimiento individual de los jugadores en el resultado final de una partida de Dota 2?
 """)
 
 col3, col4 = st.columns(2)
 
 # =========================================================
-# KDA
+# DISTRIBUCIÓN DEL KDA
 # =========================================================
 
 with col3:
 
     fig3, ax3 = plt.subplots(
-        figsize=(8,5)
+        figsize=(8, 5)
     )
 
     sns.violinplot(
@@ -375,7 +373,7 @@ with col3:
 with col4:
 
     fig4, ax4 = plt.subplots(
-        figsize=(8,5)
+        figsize=(8, 5)
     )
 
     scatter_df = df.sample(
@@ -412,19 +410,19 @@ with col4:
 st.header("📌 Hipótesis 3")
 
 st.markdown("""
-### ¿Cómo influye la economía y distribución de recursos en la victoria?
+### ¿Cómo influye la distribución de recursos económicos en el resultado final de una partida de Dota 2?
 """)
 
 col5, col6 = st.columns(2)
 
 # =========================================================
-# GPM POR ROL DEL HÉROE
+# GPM POR ROL
 # =========================================================
 
 with col5:
 
     fig5, ax5 = plt.subplots(
-        figsize=(9,5)
+        figsize=(9, 5)
     )
 
     hero_role_gpm = (
@@ -441,7 +439,7 @@ with col5:
     )
 
     ax5.set_title(
-        'GPM Promedio según Rol del Héroe',
+        'Promedio de Oro por Minuto según Rol',
         fontsize=16,
         fontweight='bold'
     )
@@ -456,7 +454,7 @@ with col5:
 
     ax5.tick_params(
         axis='x',
-        rotation=20
+        rotation=15
     )
 
     st.pyplot(fig5)
@@ -468,7 +466,7 @@ with col5:
 with col6:
 
     fig6, ax6 = plt.subplots(
-        figsize=(8,5)
+        figsize=(8, 5)
     )
 
     sns.kdeplot(
@@ -494,12 +492,3 @@ with col6:
 
     st.pyplot(fig6)
 
-# =========================================================
-# TABLA FINAL
-# =========================================================
-
-st.header("📋 Vista previa del Dataset")
-
-st.dataframe(
-    df.head(20)
-)
